@@ -1,170 +1,136 @@
 <!doctype html>
 <html lang="pt-PT">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Mapa</title>
 
-  <!-- Leaflet (CDN) -->
+  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
     crossorigin=""
   />
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
     defer
   ></script>
 
   <style>
-    html, body { height: 100%; width: 100%; margin: 0; }
-    body { overflow: hidden; }
-    #map { height: 100vh; width: 100vw; }
-
-    /* Simple custom markers */
-    .pin{
-      display:grid;
-      place-items:center;
-      width:34px;
-      height:34px;
-      border-radius:999px;
-      background:#fff;
-      border:2px solid #111;
-      box-shadow:0 8px 20px rgba(0,0,0,.18);
-      font-size:16px;
-      line-height:1;
+    html, body {
+      height: 100%;
+      margin: 0;
     }
-    .pin.primary{
-      width:44px;
-      height:44px;
-      border-width:3px;
-      position:relative;
-    }
-    .pin.primary::after{
-      content:"";
-      position:absolute;
-      inset:-10px;
-      border-radius:999px;
-      border:2px solid rgba(17,17,17,.25);
-      animation:pulse 1.8s ease-out infinite;
-    }
-    @keyframes pulse{
-      0%{ transform:scale(.55); opacity:.85; }
-      100%{ transform:scale(1.25); opacity:0; }
+    #map {
+      width: 100vw;
+      height: 100vh;
     }
 
-    /* Leaflet popup tweaks */
-    .leaflet-popup-content { margin: 10px 12px; }
-    .leaflet-popup-content-wrapper { border-radius: 14px; }
+    .pin {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #111;
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+      font-size: 16px;
+    }
+
+    .pin.primary {
+      width: 44px;
+      height: 44px;
+      border-width: 3px;
+      position: relative;
+    }
+
+    .pin.primary::after {
+      content: "";
+      position: absolute;
+      inset: -10px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,.3);
+      animation: pulse 1.8s ease-out infinite;
+    }
+
+    @keyframes pulse {
+      from { transform: scale(.6); opacity: .9; }
+      to   { transform: scale(1.25); opacity: 0; }
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 14px;
+    }
   </style>
 </head>
 
 <body>
-  <div id="map" aria-label="Mapa interativo"></div>
+  <div id="map"></div>
 
   <script>
     window.addEventListener("DOMContentLoaded", () => {
-      // ====== EDITA AQUI (se precisares) ======
-      const config = {
-        // Textos para geocodificação (Nominatim / OpenStreetMap)
-        propertyQuery: "Avenida Marechal Gomes da Costa, Porto, Portugal",
-        poi1Query: "Museu de Serralves, Porto, Portugal",
-        poi2Query: "Praia dos Franceses, Porto, Portugal",
 
-        // Textos exibidos nos popups
-        propertyLabel: "Avenida Marechal Gomes da Costa, Porto",
-        poi1Label: "Serralves",
-        poi2Label: "Praia dos Franceses"
+      const locations = {
+        property: {
+          lat: 41.15685,
+          lon: -8.66791,
+          label: "Avenida Marechal Gomes da Costa, Porto"
+        },
+        poi1: {
+          lat: 41.159097,
+          lon: -8.659356,
+          label: "Fundação de Serralves"
+        },
+        poi2: {
+          lat: 41.151895,
+          lon: -8.678260,
+          label: "Praia dos Ingleses"
+        }
       };
-      // =======================================
 
-      const map = L.map("map", {
-        zoomControl: true,
-        attributionControl: true
-      });
+      const map = L.map("map", { zoomControl: true });
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: "&copy; OpenStreetMap"
       }).addTo(map);
 
       const primaryIcon = L.divIcon({
+        html: '<div class="pin primary">📌</div>',
         className: "",
-        html: '<div class="pin primary" title="Imóvel">📌</div>',
         iconSize: [44, 44],
         iconAnchor: [22, 22],
         popupAnchor: [0, -18]
       });
 
       const poiIcon = L.divIcon({
+        html: '<div class="pin">📍</div>',
         className: "",
-        html: '<div class="pin" title="Ponto">📍</div>',
         iconSize: [34, 34],
         iconAnchor: [17, 17],
         popupAnchor: [0, -14]
       });
 
-      async function geocode(query) {
-        const url = new URL("https://nominatim.openstreetmap.org/search");
-        url.searchParams.set("format", "json");
-        url.searchParams.set("q", query);
-        url.searchParams.set("limit", "1");
-
-        const res = await fetch(url.toString(), {
-          method: "GET",
-          headers: { "Accept": "application/json" }
-        });
-
-        if (!res.ok) throw new Error(`Falha ao geocodificar: ${query}`);
-        const data = await res.json();
-        if (!data || !data.length) throw new Error(`Sem resultados para: ${query}`);
-        return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-      }
-
-      function escapeHtml(str) {
-        return String(str)
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#039;");
-      }
-
-      function addMarker(lat, lon, label, icon) {
-        return L.marker([lat, lon], { icon })
+      const markers = [
+        L.marker([locations.property.lat, locations.property.lon], { icon: primaryIcon })
           .addTo(map)
-          .bindPopup(`<strong>${escapeHtml(label)}</strong>`);
-      }
+          .bindPopup("<strong>📌 " + locations.property.label + "</strong>"),
 
-      (async () => {
-        try {
-          const [p, a, b] = await Promise.all([
-            geocode(config.propertyQuery),
-            geocode(config.poi1Query),
-            geocode(config.poi2Query)
-          ]);
+        L.marker([locations.poi1.lat, locations.poi1.lon], { icon: poiIcon })
+          .addTo(map)
+          .bindPopup("<strong>📍 " + locations.poi1.label + "</strong>"),
 
-          const markers = [
-            addMarker(p.lat, p.lon, `📌 ${config.propertyLabel}`, primaryIcon),
-            addMarker(a.lat, a.lon, `📍 ${config.poi1Label}`, poiIcon),
-            addMarker(b.lat, b.lon, `📍 ${config.poi2Label}`, poiIcon)
-          ];
+        L.marker([locations.poi2.lat, locations.poi2.lon], { icon: poiIcon })
+          .addTo(map)
+          .bindPopup("<strong>📍 " + locations.poi2.label + "</strong>")
+      ];
 
-          const group = L.featureGroup(markers);
-          map.fitBounds(group.getBounds().pad(0.20));
-          markers[0].openPopup();
-        } catch (err) {
-          map.setView([41.1579, -8.6291], 12); // Porto fallback
-          console.error(err);
-          L.popup()
-            .setLatLng(map.getCenter())
-            .setContent("Não foi possível localizar um ou mais pontos. Ajusta os textos em <code>config</code>.")
-            .openOn(map);
-        }
-      })();
+      const group = L.featureGroup(markers);
+      map.fitBounds(group.getBounds().pad(0.25));
+
+      markers[0].openPopup();
     });
   </script>
 </body>
