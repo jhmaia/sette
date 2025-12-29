@@ -25,23 +25,23 @@
     #map { height: 100vh; width: 100vw; }
 
     /* Simple custom markers */
-    .pin {
-      display: grid;
-      place-items: center;
-      width: 34px;
-      height: 34px;
-      border-radius: 999px;
-      background: #ffffff;
-      border: 2px solid #111;
-      box-shadow: 0 8px 20px rgba(0,0,0,.18);
-      font-size: 16px;
-      line-height: 1;
+    .pin{
+      display:grid;
+      place-items:center;
+      width:34px;
+      height:34px;
+      border-radius:999px;
+      background:#fff;
+      border:2px solid #111;
+      box-shadow:0 8px 20px rgba(0,0,0,.18);
+      font-size:16px;
+      line-height:1;
     }
-    .pin.primary {
-      width: 44px;
-      height: 44px;
-      border-width: 3px;
-      position: relative;
+    .pin.primary{
+      width:44px;
+      height:44px;
+      border-width:3px;
+      position:relative;
     }
     .pin.primary::after{
       content:"";
@@ -56,7 +56,7 @@
       100%{ transform:scale(1.25); opacity:0; }
     }
 
-    /* Leaflet popup tweaks (subtle) */
+    /* Leaflet popup tweaks */
     .leaflet-popup-content { margin: 10px 12px; }
     .leaflet-popup-content-wrapper { border-radius: 14px; }
   </style>
@@ -66,37 +66,31 @@
   <div id="map" aria-label="Mapa interativo"></div>
 
   <script>
-    // Wait for Leaflet to load (script is deferred)
     window.addEventListener("DOMContentLoaded", () => {
-      // ====== EDITA AQUI (nomes + localização) ======
+      // ====== EDITA AQUI (se precisares) ======
       const config = {
-        // Texto que será geocodificado (OpenStreetMap / Nominatim)
-        // Podes usar morada, localidade, ou referência (ex.: "Herdade com projeto aprovado, Comporta, Portugal").
-        propertyQuery: "Herdade com projeto aprovado, Comporta, Portugal",
-        poi1Query: "Praia do Pego, Comporta, Portugal",
-        poi2Query: "Comporta, Portugal",
+        // Textos para geocodificação (Nominatim / OpenStreetMap)
+        propertyQuery: "Avenida Marechal Gomes da Costa, Porto, Portugal",
+        poi1Query: "Museu de Serralves, Porto, Portugal",
+        poi2Query: "Praia dos Franceses, Porto, Portugal",
 
-        propertyLabel: "Herdade com projeto aprovado",
-        poi1Label: "Praia do Pego",
-        poi2Label: "Comporta",
-
-        // Zoom inicial (será ajustado automaticamente com fitBounds quando os pontos carregarem)
-        initialZoom: 13
+        // Textos exibidos nos popups
+        propertyLabel: "Avenida Marechal Gomes da Costa, Porto",
+        poi1Label: "Serralves",
+        poi2Label: "Praia dos Franceses"
       };
-      // =============================================
+      // =======================================
 
       const map = L.map("map", {
         zoomControl: true,
         attributionControl: true
       });
 
-      // OpenStreetMap tiles
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
-      // Icons
       const primaryIcon = L.divIcon({
         className: "",
         html: '<div class="pin primary" title="Imóvel">📌</div>',
@@ -113,7 +107,6 @@
         popupAnchor: [0, -14]
       });
 
-      // Geocoding via Nominatim (OSM)
       async function geocode(query) {
         const url = new URL("https://nominatim.openstreetmap.org/search");
         url.searchParams.set("format", "json");
@@ -131,12 +124,6 @@
         return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
       }
 
-      function addMarker(lat, lon, label, icon) {
-        return L.marker([lat, lon], { icon })
-          .addTo(map)
-          .bindPopup(`<strong>${escapeHtml(label)}</strong>`, { closeButton: true });
-      }
-
       function escapeHtml(str) {
         return String(str)
           .replaceAll("&", "&amp;")
@@ -146,7 +133,12 @@
           .replaceAll("'", "&#039;");
       }
 
-      // Load points, add markers, fit bounds
+      function addMarker(lat, lon, label, icon) {
+        return L.marker([lat, lon], { icon })
+          .addTo(map)
+          .bindPopup(`<strong>${escapeHtml(label)}</strong>`);
+      }
+
       (async () => {
         try {
           const [p, a, b] = await Promise.all([
@@ -155,24 +147,21 @@
             geocode(config.poi2Query)
           ]);
 
-          const markers = [];
-          markers.push(addMarker(p.lat, p.lon, `📌 ${config.propertyLabel}`, primaryIcon));
-          markers.push(addMarker(a.lat, a.lon, `📍 ${config.poi1Label}`, poiIcon));
-          markers.push(addMarker(b.lat, b.lon, `📍 ${config.poi2Label}`, poiIcon));
+          const markers = [
+            addMarker(p.lat, p.lon, `📌 ${config.propertyLabel}`, primaryIcon),
+            addMarker(a.lat, a.lon, `📍 ${config.poi1Label}`, poiIcon),
+            addMarker(b.lat, b.lon, `📍 ${config.poi2Label}`, poiIcon)
+          ];
 
           const group = L.featureGroup(markers);
           map.fitBounds(group.getBounds().pad(0.20));
-
-          // Open property popup by default
           markers[0].openPopup();
         } catch (err) {
-          // Fallback: center in Portugal if geocoding fails
-          map.setView([39.5, -8.0], 7);
+          map.setView([41.1579, -8.6291], 12); // Porto fallback
           console.error(err);
-
-          L.popup({ closeButton: true })
+          L.popup()
             .setLatLng(map.getCenter())
-            .setContent("Não foi possível localizar um ou mais pontos. Verifica os textos em <code>config</code>.")
+            .setContent("Não foi possível localizar um ou mais pontos. Ajusta os textos em <code>config</code>.")
             .openOn(map);
         }
       })();
